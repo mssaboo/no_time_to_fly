@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<project>                                  
+  <executable name="dist/default/production/Gaby_Helicopter_Code.production.elf">                 
+    <memory name="program">                 
+      <units>bytes</units>                 
+      <length>263312</length>                 
+      <used>55032</used>                     
+      <free>208280</free>                     
+    </memory>                              
+    <memory name="data">              
+      <units>bytes</units>                 
+      <length>65536</length>                 
+      <used>2552</used>                     
+      <free>62984</free>                     
+    </memory>                              
+  </executable>                            
+</project>                                 

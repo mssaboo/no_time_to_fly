@@ -1,0 +1,640 @@
+{\rtf1\ansi \deff1{\fonttbl{\f1\fmodern\fprq1\fcharset0 Consolas;}}{\colortbl;\red255\green255\blue255;\red51\green00\blue102;\red24\green97\blue167;\red50\green186\blue06;\red00\green102\blue51;\red00\green102\blue51;\red166\green23\blue97;\red83\green116\blue176;\red102\green51\blue00;\red154\green154\blue154;\red85\green85\blue85;\red166\green23\blue97;\red255\green00\blue00;\red255\green00\blue00;\red255\green48\blue48;\red244\green140\blue35;\red209\green28\blue237;\red221\green130\blue13;\red119\green106\blue184;}
+\paperw12240\paperh15840\margl1134\margr1134\margt1134\margb1134\sectd\plain\f1\fs20
+\pard \cbpat1{{\cf2{}}{\cf6{/****************************************************************************}}}\par\pard
+\cbpat1{{\cf6{ Module}}}\par\pard
+\cbpat1{{\cf6{   DCMotorService.c}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Revision}}}\par\pard
+\cbpat1{{\cf6{   {1}.{0}.{1}}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Description}}}\par\pard
+\cbpat1{{\cf6{ This is a DC Motor Service set up to work with the Lego NXT gear motor with }}}\par\pard
+\cbpat1{{\cf6{ encoder. The encoder has {3}{6}{0} counts per revolution.}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{****************************************************************************/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/*----------------------------- Include Files -----------------------------*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/* include header files for this state machine as well as any machines at the}}}\par\pard
+\cbpat1{{\cf6{   next lower level in the hierarchy that are sub-machines to this machine}}}\par\pard
+\cbpat1{{\cf6{*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// Events & Services Framework}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#include}} {\cf9{"ES_Configure.h"}}{\cf8{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#include}} {\cf9{"ES_Framework.h"}}{\cf8{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#include}} {\cf9{"dbprintf.h"}}{\cf8{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// PORT HAL}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#include}} {\cf9{"PIC{3}{2}_PORT_HAL.h"}}{\cf8{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{//Service Headers}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#include}} {\cf9{"LEDMissileService.h"}}{\cf8{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// PWM Lib}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#include}} {\cf9{"PWM_PIC{3}{2}.h"}}{\cf8{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// This Module}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#include}} {\cf9{"DCMotorService.h"}}{\cf8{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/*----------------------------- Module Defines ----------------------------*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// these times assume a {1}.{0}{0}{0}mS/tick timing}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ONE_SEC {1}{0}{0}{0}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define HALF_SEC (ONE_SEC / {2})}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define TWO_SEC (ONE_SEC * {2})}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define FIVE_SEC (ONE_SEC * {5})}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define TEN_MS ({1}{0})}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define TWENTY_FIVE_MS ({2}{5})}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define FIFTY_MS ({5}{0})}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// TICS_PER_MS assumes a {2}{0}MHz PBClk /{8} = {2}.{5}MHz clock rate}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define TICS_PER_MS {2}{5}{0}{0}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{//define directions for motor}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define CW true}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define CCW false}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// H-Bridge Ports/Pins}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define HBRIDGE_PORT _Port_B}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define H{1}_PIN _Pin_{6}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define H{2}_PIN _Pin_{7}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define H{1} PORTBbits.RB{6}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define H{2} PORTBbits.RB{7}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define HOUT PORTBINV}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// PWM Hardware Constants}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// Enable A}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENA_CHANNEL {4}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENA_PIN PWM_RPB{2}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENA_TIMER _Timer{3}_}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENA_FREQ {5}{0}{0}}} {\cf5{// Hz}}}\par\pard
+\cbpat1{{\cf8{}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// Encoder Ports}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENC_PORT _Port_B}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENCA_PIN _Pin_{9}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENCB_PIN _Pin_{8}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENCA PORTBbits.RB{9}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENCB PORTBbits.RB{8}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// Motor Limits}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define LIMIT_COUNT false}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define MAX_COUNT ((int{3}{2}_t){1} * {3}{6}{0})}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define MIN_COUNT ((int{3}{2}_t)-{1} * {3}{6}{0})}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// define timeout duration for timers}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define ENCODER_TIME {2}{0}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#define MOTOR_RESET_TIME {3}{3}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/*---------------------------- Module Functions ---------------------------*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/* prototypes for private functions for this machine.They should be functions}}}\par\pard
+\cbpat1{{\cf6{   relevant to the behavior of this state machine}}}\par\pard
+\cbpat1{{\cf6{*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{void}} {\cf2{}}{\cf17{SetDir}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{bool}} {\cf2{dir}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{void}} {\cf2{}}{\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{uint{8}_t}} {\cf2{cmd}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{bool}} {\cf2{}}{\cf17{DecodeQuadrature}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{uint{8}_t}} {\cf2{CurrentEncAState}}{\cf11{,}} {\cf2{}}{\cf16{uint{8}_t}} {\cf2{CurrentEncBState}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{void}} {\cf2{}}{\cf17{DecodeMotorKey}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{char}} {\cf2{key}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/*---------------------------- Module Variables ---------------------------*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{static uint{8}_t}} {\cf2{MyPriority}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// Motor direction: true: cw, false: ccw}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{static bool}} {\cf2{LastDir}} {\cf11{=}} {\cf2{CW}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// Motor speed: ({0}-{1}{0}{0}) percent}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{static uint{8}_t}} {\cf2{SpeedCmd}} {\cf11{=}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// Motor angular position}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{static int{3}{2}_t}} {\cf2{Count}} {\cf11{=}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{;}} {\cf2{}}{\cf5{// Encoder count starts at the bottom}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// encoder states}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{static uint{8}_t}} {\cf2{LastEncAState}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{static uint{8}_t}} {\cf2{LastEncBState}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// bool for initialization}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{static bool}} {\cf2{InitComplete}} {\cf11{=}} {\cf2{}}{\cf15{false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/*------------------------------ Module Code ------------------------------*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/****************************************************************************}}}\par\pard
+\cbpat1{{\cf6{ Function}}}\par\pard
+\cbpat1{{\cf6{     InitDCMotorService}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Parameters}}}\par\pard
+\cbpat1{{\cf6{     uint{8}_t : the priority of this service}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Returns}}}\par\pard
+\cbpat1{{\cf6{     bool, false if error in initialization, true otherwise}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Description}}}\par\pard
+\cbpat1{{\cf6{     Saves away the priority, sets up the initial transition and does any}}}\par\pard
+\cbpat1{{\cf6{     other required initialization for this state machine}}}\par\pard
+\cbpat1{{\cf6{ Notes}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Author}}}\par\pard
+\cbpat1{{\cf6{     Aaron Brown, {1}{1}/{0}{6}/{2}{1}, {1}{8}:{3}{6}}}}\par\pard
+\cbpat1{{\cf6{****************************************************************************/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{bool}} {\cf2{}}{\cf17{InitDCMotorService}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{uint{8}_t}} {\cf2{Priority}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{    ES_Event_t ThisEvent}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{//set priority}}}\par\pard
+\cbpat1{{\cf2{    MyPriority}} {\cf11{=}} {\cf2{Priority}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{// Configure H-Bridge pins as digital outputs}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PortSetup_ConfigureDigitalOutputs}}{\cf2{}}{\cf11{(}}{\cf2{HBRIDGE_PORT}}{\cf11{,}} {\cf2{H{1}_PIN}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PortSetup_ConfigureDigitalOutputs}}{\cf2{}}{\cf11{(}}{\cf2{HBRIDGE_PORT}}{\cf11{,}} {\cf2{H{2}_PIN}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{// Configure Motor Encoder pins as digital inputs}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PortSetup_ConfigureDigitalInputs}}{\cf2{}}{\cf11{(}}{\cf2{ENC_PORT}}{\cf11{,}} {\cf2{ENCA_PIN}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PortSetup_ConfigureDigitalInputs}}{\cf2{}}{\cf11{(}}{\cf2{ENC_PORT}}{\cf11{,}} {\cf2{ENCB_PIN}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{// Then initialize Encoder states by reading the encoder pins}}}\par\pard
+\cbpat1{{\cf2{    LastEncAState}} {\cf11{=}} {\cf2{ENCA}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{    LastEncBState}} {\cf11{=}} {\cf2{ENCB}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf6{/********************************************}}}\par\pard
+\cbpat1{{\cf6{   Initialization sequence for timers to do motor drive}}}\par\pard
+\cbpat1{{\cf6{   *******************************************/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf16{uint{8}_t}} {\cf2{HowMany}} {\cf11{=}} {\cf2{ENA_CHANNEL}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{//PWM Configuration for DC Motor}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{//Basic Config}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{//Set Frequency}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{//Assign Channel to Timer}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{//SetDutyOnChannel}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{//Map Channel to Output Pin}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PWMSetup_BasicConfig}}{\cf2{}}{\cf11{(}}{\cf2{ENA_CHANNEL}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PWMSetup_SetFreqOnTimer}}{\cf2{}}{\cf11{(}}{\cf2{ENA_FREQ}}{\cf11{,}} {\cf2{ENA_TIMER}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PWMSetup_AssignChannelToTimer}}{\cf2{}}{\cf11{(}}{\cf2{ENA_CHANNEL}}{\cf11{,}} {\cf2{ENA_TIMER}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PWMOperate_SetDutyOnChannel}}{\cf2{}}{\cf11{(}}{\cf2{SpeedCmd}}{\cf11{,}} {\cf2{ENA_CHANNEL}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{PWMSetup_MapChannelToOutputPin}}{\cf2{}}{\cf11{(}}{\cf2{ENA_CHANNEL}}{\cf11{,}} {\cf2{ENA_PIN}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{// post the initial transition event}}}\par\pard
+\cbpat1{{\cf2{    ThisEvent}}{\cf11{.}}{\cf2{EventType}} {\cf11{=}} {\cf2{ES_INIT}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(!}}{\cf2{}}{\cf17{ES_PostToService}}{\cf2{}}{\cf11{(}}{\cf2{MyPriority}}{\cf11{,}} {\cf2{ThisEvent}}{\cf11{))}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{return false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{return true}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/****************************************************************************}}}\par\pard
+\cbpat1{{\cf6{ Function}}}\par\pard
+\cbpat1{{\cf6{     PostDCMotorService}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Parameters}}}\par\pard
+\cbpat1{{\cf6{     ES_Event_t ThisEvent , the event to post to the queue}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Returns}}}\par\pard
+\cbpat1{{\cf6{     boolean False if the Enqueue operation failed, True otherwise}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Description}}}\par\pard
+\cbpat1{{\cf6{     Posts an event to this state machine's queue}}}\par\pard
+\cbpat1{{\cf6{ Notes}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Author}}}\par\pard
+\cbpat1{{\cf6{     Aaron Brown, {1}{1}/{0}{6}/{2}{1}, {1}{8}:{3}{6}}}}\par\pard
+\cbpat1{{\cf6{****************************************************************************/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{bool}} {\cf2{}}{\cf17{PostDCMotorService}}{\cf2{}}{\cf11{(}}{\cf2{ES_Event_t ThisEvent}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{return}} {\cf2{}}{\cf17{ES_PostToService}}{\cf2{}}{\cf11{(}}{\cf2{MyPriority}}{\cf11{,}} {\cf2{ThisEvent}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/****************************************************************************}}}\par\pard
+\cbpat1{{\cf6{ Function}}}\par\pard
+\cbpat1{{\cf6{    RunDCMotorService}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Parameters}}}\par\pard
+\cbpat1{{\cf6{   ES_Event_t : the event to process}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Returns}}}\par\pard
+\cbpat1{{\cf6{   ES_Event_t, ES_NO_EVENT if no error ES_ERROR otherwise}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Description}}}\par\pard
+\cbpat1{{\cf6{    Moves DC Motor at speed posted from GameService}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{ Author}}}\par\pard
+\cbpat1{{\cf6{     Aaron Brown, {1}{1}/{0}{6}/{2}{1}, {1}{8}:{3}{6}}}}\par\pard
+\cbpat1{{\cf6{****************************************************************************/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{ES_Event_t}} {\cf17{RunDCMotorService}}{\cf2{}}{\cf11{(}}{\cf2{ES_Event_t ThisEvent}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{    ES_Event_t ReturnEvent}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{    ReturnEvent}}{\cf11{.}}{\cf2{EventType}} {\cf11{=}} {\cf2{ES_NO_EVENT}}{\cf11{;}} {\cf2{}}{\cf5{// assume no errors}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{switch}} {\cf2{}}{\cf11{(}}{\cf2{ThisEvent}}{\cf11{.}}{\cf2{EventType}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{case}} {\cf2{}}{\cf11{(}}{\cf2{RESET}}{\cf11{):}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//Reset Configuration and Stop the Motor}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(!}}{\cf2{InitComplete}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{            H{1}}} {\cf11{=}} {\cf2{}}{\cf4{{1}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{            InitComplete}} {\cf11{=}} {\cf2{}}{\cf15{true}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{PostDCMotorService}}{\cf2{}}{\cf11{(}}{\cf2{ThisEvent}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{            H{2}}} {\cf11{=}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{            Count}} {\cf11{=}} {\cf2{}}{\cf17{GetAngleDeg}}{\cf2{}}{\cf11{();}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//Init Timer to post Angle to LEDMissileService at Fixed Frequency}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{ES_Timer_InitTimer}}{\cf2{}}{\cf11{(}}{\cf2{ENCODER_TIMER}}{\cf11{,}} {\cf2{ENCODER_TIME}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{break}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{case}} {\cf2{}}{\cf11{(}}{\cf2{ES_INIT}}{\cf11{):}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//Initialize motor configuration}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(!}}{\cf2{InitComplete}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{            H{1}}} {\cf11{=}} {\cf2{}}{\cf4{{1}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{            InitComplete}} {\cf11{=}} {\cf2{}}{\cf15{true}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{PostDCMotorService}}{\cf2{}}{\cf11{(}}{\cf2{ThisEvent}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{            H{2}}} {\cf11{=}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetDir}}{\cf2{}}{\cf11{(}}{\cf2{CW}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{            InitComplete}} {\cf11{=}} {\cf2{}}{\cf15{false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//Init Timer to post Angle to LEDMissileService at Fixed Frequency}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{ES_Timer_InitTimer}}{\cf2{}}{\cf11{(}}{\cf2{ENCODER_TIMER}}{\cf11{,}} {\cf2{ENCODER_TIME}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{break}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{case}} {\cf2{ES_TIMEOUT}}{\cf11{:}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//If ENCODER_TIMER timeout -> post angle to LEDMissileService}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{ThisEvent}}{\cf11{.}}{\cf2{EventParam}} {\cf11{==}} {\cf2{ENCODER_TIMER}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{            ES_Event_t Event{2}Post}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{            Event{2}Post}}{\cf11{.}}{\cf2{EventType}} {\cf11{=}} {\cf2{ENCODER_UPDATE}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf16{uint{1}{6}_t}} {\cf2{angle}} {\cf11{=}} {\cf2{}}{\cf17{GetAngleDeg}}{\cf2{}}{\cf11{();}}}\par\pard
+\cbpat1{{\cf2{            Event{2}Post}}{\cf11{.}}{\cf2{EventParam}} {\cf11{=}} {\cf2{angle}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{PostLEDMissileService}}{\cf2{}}{\cf11{(}}{\cf2{Event{2}Post}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{ES_Timer_InitTimer}}{\cf2{}}{\cf11{(}}{\cf2{ENCODER_TIMER}}{\cf11{,}} {\cf2{ENCODER_TIME}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//If MOTOR_RESET_TIMER timeout-> post MOTOR_RESET to this service}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{ThisEvent}}{\cf11{.}}{\cf2{EventParam}} {\cf11{==}} {\cf2{MOTOR_RESET_TIMER}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{            ThisEvent}}{\cf11{.}}{\cf2{EventType}} {\cf11{=}} {\cf2{MOTOR_RESET}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{PostDCMotorService}}{\cf2{}}{\cf11{(}}{\cf2{ThisEvent}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{break}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{case}} {\cf2{}}{\cf11{(}}{\cf2{MOTOR_CMD}}{\cf11{):}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//Set speed of motor as event parameter}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf16{uint{8}_t}} {\cf2{cmd}} {\cf11{= (}}{\cf2{}}{\cf16{uint{8}_t}}{\cf2{}}{\cf11{)}}{\cf2{ThisEvent}}{\cf11{.}}{\cf2{EventParam}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{cmd}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{break}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{case}} {\cf2{ES_NEW_KEY}}{\cf11{:}} {\cf2{}}{\cf5{// parse commands}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//Used to control motor with keyboard}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf16{char}} {\cf2{key}} {\cf11{= (}}{\cf2{}}{\cf16{char}}{\cf2{}}{\cf11{)}}{\cf2{ThisEvent}}{\cf11{.}}{\cf2{EventParam}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{DecodeMotorKey}}{\cf2{}}{\cf11{(}}{\cf2{key}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{break}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{default}}{\cf2{}}{\cf11{:}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{break}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{return}} {\cf2{ReturnEvent}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/* Query Functions */}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{//GetAngleDeg converts Encoder Counts to angle [{0},{3}{6}{0}]}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{uint{1}{6}_t}} {\cf2{}}{\cf17{GetAngleDeg}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{void}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf16{uint{1}{6}_t}} {\cf2{ang}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{Count}} {\cf11{<}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{        ang}} {\cf11{=}} {\cf2{}}{\cf4{{3}{6}{0}}} {\cf2{}}{\cf11{- ((-}}{\cf2{Count}}{\cf11{) %}} {\cf2{}}{\cf4{{3}{6}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{        ang}} {\cf11{=}} {\cf2{Count}} {\cf11{%}} {\cf2{}}{\cf4{{3}{6}{0}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{return}} {\cf2{ang}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/*Event Checkers*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{//CheckEncoderEvents is used to get encoder counts}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{bool}} {\cf2{}}{\cf17{CheckEncoderEvents}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{void}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf16{bool}} {\cf2{ReturnVal}} {\cf11{=}} {\cf2{}}{\cf15{false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{    ES_Event_t ThisEvent}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{// Read encoder pins}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf16{uint{8}_t}} {\cf2{CurrentEncAState}} {\cf11{=}} {\cf2{ENCA}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf16{uint{8}_t}} {\cf2{CurrentEncBState}} {\cf11{=}} {\cf2{ENCB}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{CurrentEncAState}} {\cf11{!=}} {\cf2{LastEncAState}} {\cf11{&&}} {\cf2{CurrentEncAState}} {\cf11{==}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{// State has changed and CurrentState is low}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//get direction of motor rotation}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf16{bool}} {\cf2{dir}} {\cf11{=}} {\cf2{}}{\cf17{DecodeQuadrature}}{\cf2{}}{\cf11{(}}{\cf2{CurrentEncAState}}{\cf11{,}} {\cf2{CurrentEncBState}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{dir}} {\cf11{==}} {\cf2{CCW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf5{//if direction is CCW, increment count by {2}}}}\par\pard
+\cbpat1{{\cf2{            Count}} {\cf11{=}} {\cf2{Count}} {\cf11{+}} {\cf2{}}{\cf4{{2}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf5{//if direction is CW, decrement count by {2}}}}\par\pard
+\cbpat1{{\cf2{            Count}} {\cf11{=}} {\cf2{Count}} {\cf11{-}} {\cf2{}}{\cf4{{2}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{//Update Last Encoder States}}}\par\pard
+\cbpat1{{\cf2{    LastEncAState}} {\cf11{=}} {\cf2{CurrentEncAState}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{    LastEncBState}} {\cf11{=}} {\cf2{CurrentEncBState}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{return}} {\cf2{ReturnVal}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{//CheckCountLimits function is used to move motor by a fixed angle}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{bool}} {\cf2{}}{\cf17{CheckCountLimits}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{void}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf16{bool}} {\cf2{ReturnVal}} {\cf11{=}} {\cf2{}}{\cf15{false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{    ES_Event_t ThisEvent}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#if (LIMIT_COUNT)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{Count}} {\cf11{>=}} {\cf2{MAX_COUNT}} {\cf11{&&}} {\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{DB_printf}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf3{"}}{\cf7{\\r}}{\cf3{Count Maxed At:}} {\cf12{%d}}{\cf3{}}{\cf7{\\r\\n}}{\cf3{"}}{\cf2{}}{\cf11{,}} {\cf2{Count}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{        ThisEvent}}{\cf11{.}}{\cf2{EventType}} {\cf11{=}} {\cf2{MOTOR_MAX}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{PostDCMotorService}}{\cf2{}}{\cf11{(}}{\cf2{ThisEvent}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{        ReturnVal}} {\cf11{=}} {\cf2{}}{\cf15{false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{Count}} {\cf11{<=}} {\cf2{MIN_COUNT}} {\cf11{&&}} {\cf2{LastDir}} {\cf11{==}} {\cf2{CCW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{DB_printf}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf3{"}}{\cf7{\\r}}{\cf3{Count Minned At:}} {\cf12{%d}}{\cf3{}}{\cf7{\\r\\n}}{\cf3{"}}{\cf2{}}{\cf11{,}} {\cf2{Count}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{        ThisEvent}}{\cf11{.}}{\cf2{EventType}} {\cf11{=}} {\cf2{MOTOR_MIN}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{PostDCMotorService}}{\cf2{}}{\cf11{(}}{\cf2{ThisEvent}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{        ReturnVal}} {\cf11{=}} {\cf2{}}{\cf15{false}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf8{#endif}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{return}} {\cf2{ReturnVal}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/***************************************************************************}}}\par\pard
+\cbpat1{{\cf6{ private functions}}}\par\pard
+\cbpat1{{\cf6{ ***************************************************************************/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// SetDir is used to set CW/CCW direction of motor}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{void}} {\cf2{}}{\cf17{SetDir}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{bool}} {\cf2{dir}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{dir}} {\cf11{!=}} {\cf2{LastDir}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{        HOUT}} {\cf11{= (}}{\cf2{H{1}_PIN}} {\cf11{|}} {\cf2{H{2}_PIN}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{        LastDir}} {\cf11{=}} {\cf2{dir}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// SetSpeed is used to set the speed of the motor}}}\par\pard
+\cbpat1{{\cf2{}}{\cf6{/*}}}\par\pard
+\cbpat1{{\cf6{parameter: uint{8}_t cmd}}}\par\pard
+\cbpat1{{\cf6{}}}\par\pard
+\cbpat1{{\cf6{cmd<={1}{0}{0} -> ccw direction with min speed at cmd = {0} and max speed at cmd = {1}{0}{0} -> set duty = cmd}}}\par\pard
+\cbpat1{{\cf6{cmd>{1}{0}{0} and cmd<={2}{0}{1} -> cw direction -> update cmd = cmd - {1}{0}{0} -> set duty = cmd }}}\par\pard
+\cbpat1{{\cf6{*/}}{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{void}} {\cf2{}}{\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{uint{8}_t}} {\cf2{cmd}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{cmd}} {\cf11{<=}} {\cf2{}}{\cf4{{1}{0}{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{SetDir}}{\cf2{}}{\cf11{(}}{\cf2{CCW}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{cmd}} {\cf11{>}} {\cf2{}}{\cf4{{1}{0}{0}}} {\cf2{}}{\cf11{&&}} {\cf2{cmd}} {\cf11{<=}} {\cf2{}}{\cf4{{2}{0}{1}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{SetDir}}{\cf2{}}{\cf11{(}}{\cf2{CW}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{        cmd}} {\cf11{=}} {\cf2{cmd}} {\cf11{-}} {\cf2{}}{\cf4{{1}{0}{1}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{// Bad command, so stop the motor}}}\par\pard
+\cbpat1{{\cf2{        cmd}} {\cf11{=}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{    SpeedCmd}} {\cf11{=}} {\cf2{cmd}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf17{PWMOperate_SetDutyOnChannel}}{\cf2{}}{\cf11{(}}{\cf2{SpeedCmd}}{\cf11{,}} {\cf2{ENA_CHANNEL}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// DecodeQuadrature outputs direction of motor rotation}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{bool}} {\cf2{}}{\cf17{DecodeQuadrature}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{uint{8}_t}} {\cf2{CurrentEncAState}}{\cf11{,}} {\cf2{}}{\cf16{uint{8}_t}} {\cf2{CurrentEncBState}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf16{bool}} {\cf2{dir}} {\cf11{=}} {\cf2{LastDir}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf5{// Decode quadrature}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{CurrentEncAState}} {\cf11{!=}} {\cf2{LastEncAState}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{// A changed}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastEncAState}} {\cf11{==}} {\cf2{}}{\cf4{{0}}} {\cf2{}}{\cf11{&&}} {\cf2{CurrentEncBState}} {\cf11{>}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf5{// Rising edge, B leading A, CCW}}}\par\pard
+\cbpat1{{\cf2{            dir}} {\cf11{=}} {\cf2{CCW}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{LastEncAState}} {\cf11{==}} {\cf2{}}{\cf4{{0}}} {\cf2{}}{\cf11{&&}} {\cf2{CurrentEncBState}} {\cf11{==}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf5{// Rising edge, A leading B, CW}}}\par\pard
+\cbpat1{{\cf2{            dir}} {\cf11{=}} {\cf2{CW}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{LastEncAState}} {\cf11{==}} {\cf2{}}{\cf4{{1}}} {\cf2{}}{\cf11{&&}} {\cf2{CurrentEncBState}} {\cf11{>}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf5{// Falling edge, A leading B, CW}}}\par\pard
+\cbpat1{{\cf2{            dir}} {\cf11{=}} {\cf2{CW}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf5{// Falling edge, B leading A, CCW}}}\par\pard
+\cbpat1{{\cf2{            dir}} {\cf11{=}} {\cf2{CCW}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{return}} {\cf2{dir}}{\cf11{;}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}}\par\pard
+\cbpat1{{\cf2{}}{\cf5{// DecodeMotorKey is used to control motor direction and speed with keyboard}}}\par\pard
+\cbpat1{{\cf2{}}{\cf16{void}} {\cf2{}}{\cf17{DecodeMotorKey}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf16{char}} {\cf2{key}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'d'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf17{SetDir}}{\cf2{}}{\cf11{(!}}{\cf2{LastDir}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'w'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{SpeedCmd}} {\cf11{<}} {\cf2{}}{\cf4{{1}{0}{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}                {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{SpeedCmd}} {\cf11{+}} {\cf2{}}{\cf4{{1}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{SpeedCmd}} {\cf11{<}} {\cf2{}}{\cf4{{1}{0}{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}                {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{SpeedCmd}} {\cf11{+}} {\cf2{}}{\cf4{{1}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'s'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{SpeedCmd}} {\cf11{>}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}                {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{SpeedCmd}} {\cf11{-}} {\cf2{}}{\cf4{{1}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{SpeedCmd}} {\cf11{>}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}                {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{SpeedCmd}} {\cf11{-}} {\cf2{}}{\cf4{{1}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{9}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{9}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{9}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{8}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{8}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{8}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{7}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{7}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{7}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{6}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{6}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{6}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{5}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{5}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{5}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{4}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{4}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{4}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{3}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//        if (LastDir == CW)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//        \{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//            SetSpeed({3}{0});}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//        \}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//        else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{4}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{2}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//        if (LastDir == CW)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{4}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//        else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//        \{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//            SetSpeed({1}{0}{1}+{2}{0});}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf5{//        \}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{1}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{1}{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf15{else if}} {\cf2{}}{\cf11{(}}{\cf2{key}} {\cf11{==}} {\cf2{}}{\cf3{'{0}'}}{\cf2{}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{if}} {\cf2{}}{\cf11{(}}{\cf2{LastDir}} {\cf11{==}} {\cf2{CW}}{\cf11{)}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf15{else}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\{}}}\par\pard
+\cbpat1{{\cf2{}}            {\cf17{SetSpeed}}{\cf2{}}{\cf11{(}}{\cf2{}}{\cf4{{1}{0}{1}}} {\cf2{}}{\cf11{+}} {\cf2{}}{\cf4{{0}}}{\cf2{}}{\cf11{);}}}\par\pard
+\cbpat1{{\cf2{}}        {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}    {\cf11{\}}}}\par\pard
+\cbpat1{{\cf2{}}{\cf11{\}}}{\cf2{}}}\par\pard
+\cbpat1{}}
